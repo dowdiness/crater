@@ -22,4 +22,5 @@ members = [
   "./browser/native",
   "./js",
   "./wasm",
+  "../dowdiness/js_engine",
 ]
