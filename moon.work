@@ -23,4 +23,5 @@ members = [
   "./js",
   "./wasm",
   "../dowdiness/js_engine",
+  "./crater_native_window",
 ]

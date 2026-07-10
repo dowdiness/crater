@@ -9,6 +9,7 @@ import {
   "mizchi/crater-webvitals@0.19.0",
   "mizchi/crater-painter@0.19.0",
   "mizchi/crater-renderer@0.19.0",
+  "justjavac/webview@0.1.10",
 }
 
 readme = "README.mbt.md"
