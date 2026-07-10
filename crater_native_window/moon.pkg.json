@@ -1,7 +1,8 @@
 {
   "is-main": true,
   "import": [
-    "justjavac/webview"
+    "justjavac/webview",
+    "moonbitlang/core/env"
   ],
   "supported-targets": ["native"],
   "targets": {
@@ -9,8 +10,7 @@
   },
   "link": {
     "native": {
-      "cc-flags": "-fwrapv -fsanitize=address -fsanitize=undefined",
-      "cc-link-flags": "-L.mooncakes/justjavac/webview/lib -lwebview -Wl,-rpath,.mooncakes/justjavac/webview/lib"
+      "cc-link-flags": "-L.mooncakes/justjavac/webview/lib -lwebview"
     }
   }
 }
