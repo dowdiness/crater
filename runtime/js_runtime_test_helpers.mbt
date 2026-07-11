@@ -94,42 +94,15 @@ pub fn TestCtx::logs(self : TestCtx) -> Array[String] {
 // ═══════════════════════════════════════════════
 
 ///|
-/// Build a DomTree from a parsed @html.Element (recursive).
+/// Build a DomTree from a parsed @html.Element.
 fn build_dom_from_parsed(dom : @dom.DomTree, el : @html_lib.Element) -> Unit {
   let doc_id = dom.get_document()
-  let root_nid = dom.create_element(el.tag)
-  let _ = dom.append_child(doc_id, root_nid)
-  // Set attributes
-  for key in el.attributes.keys() {
-    match el.attributes.get(key) {
-      Some(value) => {
-        let _ = dom.set_attribute(root_nid, key, value)
-      }
-      None => ()
-    }
-  }
-  // Process children
-  for child in el.children {
-    build_node_recursive(dom, root_nid, child)
-  }
-}
-
-///|
-/// Recursively build a node into the DomTree beneath a parent.
-/// Delegates to convert_html_node to avoid duplicating the
-/// attribute/style/children recursive walk.
-fn build_node_recursive(
-  dom : @dom.DomTree,
-  parent_nid : @dom.NodeId,
-  node : @html_lib.Node,
-) -> Unit {
-  match convert_html_node(dom, node) {
-    Some(child_nid) => {
-      let _ = dom.append_child(parent_nid, child_nid)
-    }
+  match convert_html_node(dom, @html_lib.Node::Element(el)) {
+    Some(root_nid) => { let _ = dom.append_child(doc_id, root_nid) }
     None => ()
   }
 }
+
 
 ///|
 /// Find and execute all inline <script> elements in the DomTree.

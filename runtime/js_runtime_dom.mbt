@@ -4,6 +4,31 @@
 ///
 /// Extracted from js_runtime_jsengine.mbt during refactoring.
 
+
+///|
+/// Create a property descriptor for an accessor (getter + optional setter).
+fn accessor_desc(
+  getter : @runtime.Value,
+  setter : @runtime.Value?,
+) -> @runtime.PropDescriptor {
+  {
+    writable: true, enumerable: true, configurable: true,
+    getter: Some(getter),
+    setter,
+    is_accessor: true,
+  }
+}
+
+///|
+/// Create a property descriptor for a read-only data property with getter.
+fn data_desc(getter : @runtime.Value) -> @runtime.PropDescriptor {
+  {
+    writable: true, enumerable: true, configurable: true,
+    getter: Some(getter),
+    setter: None,
+    is_accessor: false,
+  }
+}
 // ═══════════════════════════════════════════════
 // Document bindings injection
 // ═══════════════════════════════════════════════
@@ -22,8 +47,8 @@ fn inject_dom_bindings(
     name="querySelector",
     length=1,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let sel = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.query_selector(doc_id, sel) {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
@@ -38,8 +63,8 @@ fn inject_dom_bindings(
     name="getElementById",
     length=1,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let id = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.query_selector(doc_id, "#" + id) {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
@@ -54,8 +79,8 @@ fn inject_dom_bindings(
     name="createElement",
     length=1,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let tag = if args.length() > 0 {
         args[0].to_string()
       } else {
@@ -69,8 +94,8 @@ fn inject_dom_bindings(
   let title_getter = @runtime.make_method_func(
     name="title",
     realm_state=Some(realm_state),
-    (this, _args) => {
-      let _ = this
+    (_this, _args) => {
+    
       match dom.query_selector(doc_id, "title") {
         Ok(Some(tid)) =>
           match dom.get_text_content(tid) {
@@ -86,8 +111,8 @@ fn inject_dom_bindings(
   let body_getter = @runtime.make_method_func(
     name="body",
     realm_state=Some(realm_state),
-    (this, _args) => {
-      let _ = this
+    (_this, _args) => {
+    
       match dom.query_selector(doc_id, "body") {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
         _ => @runtime.Null
@@ -98,22 +123,8 @@ fn inject_dom_bindings(
   // ── Build document object ──
   let doc_props : Map[String, @runtime.Value] = {}
   let doc_descs : Map[String, @runtime.PropDescriptor] = {}
-  doc_descs["title"] = {
-    writable: true,
-    enumerable: true,
-    configurable: true,
-    getter: Some(title_getter),
-    setter: None,
-    is_accessor: false,
-  }
-  doc_descs["body"] = {
-    writable: true,
-    enumerable: true,
-    configurable: true,
-    getter: Some(body_getter),
-    setter: None,
-    is_accessor: false,
-  }
+  doc_descs["title"] = data_desc(title_getter)
+  doc_descs["body"] = data_desc(body_getter)
 
   let document = @runtime.make_object(
     doc_props,
@@ -166,8 +177,8 @@ fn wrap_element(
   let text_content_getter = @runtime.make_method_func(
     name="textContent",
     realm_state=Some(realm_state),
-    (this, _args) => {
-      let _ = this
+    (_this, _args) => {
+    
       match dom.get_text_content(node_id) {
         Ok(text) => @runtime.Value::String_(text)
         Err(_) => @runtime.Value::String_("")
@@ -177,8 +188,8 @@ fn wrap_element(
   let text_content_setter = @runtime.make_method_func(
     name="textContent",
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let value = if args.length() > 0 { args[0].to_string() } else { "" }
       clear_children(dom, node_id)
       expect_dom_ok(dom.append_child(node_id, dom.create_text(value)))
@@ -190,8 +201,8 @@ fn wrap_element(
   let id_getter = @runtime.make_method_func(
     name="id",
     realm_state=Some(realm_state),
-    (this, _args) => {
-      let _ = this
+    (_this, _args) => {
+    
       match dom.get_attribute(node_id, "id") {
         Ok(Some(val)) => @runtime.Value::String_(val)
         _ => @runtime.Value::String_("")
@@ -203,8 +214,8 @@ fn wrap_element(
   let tag_name_getter = @runtime.make_method_func(
     name="tagName",
     realm_state=Some(realm_state),
-    (this, _args) => {
-      let _ = this
+    (_this, _args) => {
+    
       match dom.get_tag_name(node_id) {
         Ok(name) => @runtime.Value::String_(name.to_upper())
         Err(_) => @runtime.Value::String_("")
@@ -216,8 +227,8 @@ fn wrap_element(
   let class_name_getter = @runtime.make_method_func(
     name="className",
     realm_state=Some(realm_state),
-    (this, _args) => {
-      let _ = this
+    (_this, _args) => {
+    
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) => @runtime.Value::String_(val)
         _ => @runtime.Value::String_("")
@@ -227,8 +238,8 @@ fn wrap_element(
   let class_name_setter = @runtime.make_method_func(
     name="className",
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let value = if args.length() > 0 { args[0].to_string() } else { "" }
       expect_dom_ok(dom.set_attribute(node_id, "class", value))
       @runtime.Undefined
@@ -239,8 +250,8 @@ fn wrap_element(
   let inner_html_getter = @runtime.make_method_func(
     name="innerHTML",
     realm_state=Some(realm_state),
-    (this, _args) => {
-      let _ = this
+    (_this, _args) => {
+    
       let buf = StringBuilder::new()
       match dom.get_children(node_id) {
         Ok(children) =>
@@ -255,8 +266,8 @@ fn wrap_element(
   let inner_html_setter = @runtime.make_method_func(
     name="innerHTML",
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let html = if args.length() > 0 { args[0].to_string() } else { "" }
       clear_children(dom, node_id)
       let new_nodes = fragment_to_domtree(dom, html)
@@ -271,8 +282,8 @@ fn wrap_element(
   let style_getter = @runtime.make_method_func(
     name="style",
     realm_state=Some(realm_state),
-    (this, _args) => {
-      let _ = this
+    (_this, _args) => {
+    
       match dom.get_attribute(node_id, "style") {
         Ok(Some(s)) => @runtime.Value::String_(s)
         _ => @runtime.Value::String_("")
@@ -285,8 +296,8 @@ fn wrap_element(
     name="contains",
     length=1,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) =>
@@ -299,8 +310,8 @@ fn wrap_element(
     name="add",
     length=1,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) => {
@@ -318,8 +329,8 @@ fn wrap_element(
     name="remove",
     length=1,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) =>
@@ -359,8 +370,8 @@ fn wrap_element(
     name="setAttribute",
     length=2,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let name = if args.length() > 0 { args[0].to_string() } else { "" }
       let value = if args.length() > 1 { args[1].to_string() } else { "" }
       expect_dom_ok(dom.set_attribute(node_id, name, value))
@@ -373,8 +384,8 @@ fn wrap_element(
     name="getAttribute",
     length=1,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       let name = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, name) {
         Ok(Some(val)) => @runtime.Value::String_(val)
@@ -388,8 +399,8 @@ fn wrap_element(
     name="appendChild",
     length=1,
     realm_state=Some(realm_state),
-    (this, args) => {
-      let _ = this
+    (_this, args) => {
+    
       if args.length() == 0 {
         return raise_dom_error("appendChild: child element required")
       }
@@ -409,54 +420,12 @@ fn wrap_element(
   props["classList"] = class_list
   let descs : Map[String, @runtime.PropDescriptor] = {}
 
-  descs["textContent"] = {
-    writable: true,
-    enumerable: true,
-    configurable: true,
-    getter: Some(text_content_getter),
-    setter: Some(text_content_setter),
-    is_accessor: true,
-  }
-  descs["id"] = {
-    writable: true,
-    enumerable: true,
-    configurable: true,
-    getter: Some(id_getter),
-    setter: None,
-    is_accessor: false,
-  }
-  descs["tagName"] = {
-    writable: true,
-    enumerable: true,
-    configurable: true,
-    getter: Some(tag_name_getter),
-    setter: None,
-    is_accessor: false,
-  }
-  descs["className"] = {
-    writable: true,
-    enumerable: true,
-    configurable: true,
-    getter: Some(class_name_getter),
-    setter: Some(class_name_setter),
-    is_accessor: true,
-  }
-  descs["innerHTML"] = {
-    writable: true,
-    enumerable: true,
-    configurable: true,
-    getter: Some(inner_html_getter),
-    setter: Some(inner_html_setter),
-    is_accessor: true,
-  }
-  descs["style"] = {
-    writable: true,
-    enumerable: true,
-    configurable: true,
-    getter: Some(style_getter),
-    setter: None,
-    is_accessor: false,
-  }
+  descs["textContent"] = accessor_desc(text_content_getter, Some(text_content_setter))
+  descs["id"] = data_desc(id_getter)
+  descs["tagName"] = data_desc(tag_name_getter)
+  descs["className"] = accessor_desc(class_name_getter, Some(class_name_setter))
+  descs["innerHTML"] = accessor_desc(inner_html_getter, Some(inner_html_setter))
+  descs["style"] = data_desc(style_getter)
 
   let el = @runtime.make_object(
     props,
