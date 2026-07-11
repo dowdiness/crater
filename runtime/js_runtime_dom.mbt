@@ -4,7 +4,6 @@
 ///
 /// Extracted from js_runtime_jsengine.mbt during refactoring.
 
-
 ///|
 /// Create a property descriptor for an accessor (getter + optional setter).
 fn accessor_desc(
@@ -12,7 +11,9 @@ fn accessor_desc(
   setter : @runtime.Value?,
 ) -> @runtime.PropDescriptor {
   {
-    writable: true, enumerable: true, configurable: true,
+    writable: true,
+    enumerable: true,
+    configurable: true,
     getter: Some(getter),
     setter,
     is_accessor: true,
@@ -23,7 +24,9 @@ fn accessor_desc(
 /// Create a property descriptor for a read-only data property with getter.
 fn data_desc(getter : @runtime.Value) -> @runtime.PropDescriptor {
   {
-    writable: true, enumerable: true, configurable: true,
+    writable: true,
+    enumerable: true,
+    configurable: true,
     getter: Some(getter),
     setter: None,
     is_accessor: false,
@@ -48,7 +51,6 @@ fn inject_dom_bindings(
     length=1,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let sel = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.query_selector(doc_id, sel) {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
@@ -64,7 +66,6 @@ fn inject_dom_bindings(
     length=1,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let id = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.query_selector(doc_id, "#" + id) {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
@@ -80,7 +81,6 @@ fn inject_dom_bindings(
     length=1,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let tag = if args.length() > 0 {
         args[0].to_string()
       } else {
@@ -95,7 +95,6 @@ fn inject_dom_bindings(
     name="title",
     realm_state=Some(realm_state),
     (_this, _args) => {
-    
       match dom.query_selector(doc_id, "title") {
         Ok(Some(tid)) =>
           match dom.get_text_content(tid) {
@@ -112,7 +111,6 @@ fn inject_dom_bindings(
     name="body",
     realm_state=Some(realm_state),
     (_this, _args) => {
-    
       match dom.query_selector(doc_id, "body") {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
         _ => @runtime.Null
@@ -178,7 +176,6 @@ fn wrap_element(
     name="textContent",
     realm_state=Some(realm_state),
     (_this, _args) => {
-    
       match dom.get_text_content(node_id) {
         Ok(text) => @runtime.Value::String_(text)
         Err(_) => @runtime.Value::String_("")
@@ -189,7 +186,6 @@ fn wrap_element(
     name="textContent",
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let value = if args.length() > 0 { args[0].to_string() } else { "" }
       clear_children(dom, node_id)
       expect_dom_ok(dom.append_child(node_id, dom.create_text(value)))
@@ -202,7 +198,6 @@ fn wrap_element(
     name="id",
     realm_state=Some(realm_state),
     (_this, _args) => {
-    
       match dom.get_attribute(node_id, "id") {
         Ok(Some(val)) => @runtime.Value::String_(val)
         _ => @runtime.Value::String_("")
@@ -215,7 +210,6 @@ fn wrap_element(
     name="tagName",
     realm_state=Some(realm_state),
     (_this, _args) => {
-    
       match dom.get_tag_name(node_id) {
         Ok(name) => @runtime.Value::String_(name.to_upper())
         Err(_) => @runtime.Value::String_("")
@@ -228,7 +222,6 @@ fn wrap_element(
     name="className",
     realm_state=Some(realm_state),
     (_this, _args) => {
-    
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) => @runtime.Value::String_(val)
         _ => @runtime.Value::String_("")
@@ -239,7 +232,6 @@ fn wrap_element(
     name="className",
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let value = if args.length() > 0 { args[0].to_string() } else { "" }
       expect_dom_ok(dom.set_attribute(node_id, "class", value))
       @runtime.Undefined
@@ -251,7 +243,6 @@ fn wrap_element(
     name="innerHTML",
     realm_state=Some(realm_state),
     (_this, _args) => {
-    
       let buf = StringBuilder::new()
       match dom.get_children(node_id) {
         Ok(children) =>
@@ -267,7 +258,6 @@ fn wrap_element(
     name="innerHTML",
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let html = if args.length() > 0 { args[0].to_string() } else { "" }
       clear_children(dom, node_id)
       let new_nodes = fragment_to_domtree(dom, html)
@@ -283,7 +273,6 @@ fn wrap_element(
     name="style",
     realm_state=Some(realm_state),
     (_this, _args) => {
-    
       match dom.get_attribute(node_id, "style") {
         Ok(Some(s)) => @runtime.Value::String_(s)
         _ => @runtime.Value::String_("")
@@ -297,7 +286,6 @@ fn wrap_element(
     length=1,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) =>
@@ -311,7 +299,6 @@ fn wrap_element(
     length=1,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) => {
@@ -330,7 +317,6 @@ fn wrap_element(
     length=1,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) =>
@@ -371,7 +357,6 @@ fn wrap_element(
     length=2,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let name = if args.length() > 0 { args[0].to_string() } else { "" }
       let value = if args.length() > 1 { args[1].to_string() } else { "" }
       expect_dom_ok(dom.set_attribute(node_id, name, value))
@@ -385,7 +370,6 @@ fn wrap_element(
     length=1,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       let name = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, name) {
         Ok(Some(val)) => @runtime.Value::String_(val)
@@ -400,7 +384,6 @@ fn wrap_element(
     length=1,
     realm_state=Some(realm_state),
     (_this, args) => {
-    
       if args.length() == 0 {
         return raise_dom_error("appendChild: child element required")
       }
@@ -420,7 +403,10 @@ fn wrap_element(
   props["classList"] = class_list
   let descs : Map[String, @runtime.PropDescriptor] = {}
 
-  descs["textContent"] = accessor_desc(text_content_getter, Some(text_content_setter))
+  descs["textContent"] = accessor_desc(
+    text_content_getter,
+    Some(text_content_setter),
+  )
   descs["id"] = data_desc(id_getter)
   descs["tagName"] = data_desc(tag_name_getter)
   descs["className"] = accessor_desc(class_name_getter, Some(class_name_setter))

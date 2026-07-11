@@ -1,0 +1,55 @@
+///|
+/// JavaScript Runtime - Native target (default stub)
+///
+/// Default stub raises NotSupported. Use Browser::set_js_runtime()
+/// with JsEngineRuntime from js_runtime_jsengine.mbt to enable JS.
+
+///|
+priv struct NativeStubRuntime {
+  _unused : Int
+}
+
+///|
+let native_stub_runtime : NativeStubRuntime = { _unused: 0 }
+
+///|
+fn allocate_runtime_context_id() -> Int {
+  0
+}
+
+///|
+fn default_js_runtime() -> &JsRuntime {
+  native_stub_runtime as &JsRuntime
+}
+
+///|
+impl JsRuntime for NativeStubRuntime with fn init(self : NativeStubRuntime) -> Unit {
+  let _ = self
+}
+
+///|
+impl JsRuntime for NativeStubRuntime with fn execute(
+  self : NativeStubRuntime,
+  context_id : Int,
+  dom : @dom.DomTree,
+  code : String,
+  async_mode : AsyncExecutionMode,
+) -> JsResult raise JsError {
+  let _ = (self, context_id, dom, code, async_mode)
+  raise NotSupported
+}
+
+///|
+impl JsRuntime for NativeStubRuntime with fn tick(
+  self : NativeStubRuntime,
+  context_id : Int,
+  dom : @dom.DomTree,
+) -> JsResult raise JsError {
+  let _ = (self, context_id, dom)
+  JsResult::new("false", [], true)
+}
+
+///|
+pub fn init_js_runtime() -> Unit {
+  native_stub_runtime.init()
+}

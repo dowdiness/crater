@@ -1,7 +1,9 @@
 ///|
 /// JavaScript Runtime - js_engine implementation with DOM bindings
 ///
-/// Execution core: JsEngineRuntime struct + JsRuntime trait impl.
+/// NOT the default on native. Use Browser::set_js_runtime():
+///   browser.set_js_runtime(jsengine_runtime_ref())
+///
 /// DOM bindings and helpers live in sibling files:
 ///   js_runtime_dom.mbt   — inject_dom_bindings, wrap_element, extract_node_id
 ///   js_runtime_helpers.mbt — HTML→DomTree, error handling
@@ -19,12 +21,8 @@ priv struct JsEngineRuntime {
 let jsengine_runtime : JsEngineRuntime = { _unused: 0 }
 
 ///|
-fn allocate_runtime_context_id() -> Int {
-  0
-}
-
-///|
-fn default_js_runtime() -> &JsRuntime {
+/// Get a reference to the js_engine runtime for opt-in use.
+pub fn jsengine_runtime_ref() -> &JsRuntime {
   jsengine_runtime as &JsRuntime
 }
 
@@ -67,9 +65,4 @@ impl JsRuntime for JsEngineRuntime with fn tick(
 ) -> JsResult raise JsError {
   let _ = (self, context_id, dom)
   JsResult::new("false", [], true)
-}
-
-///|
-pub fn init_js_runtime() -> Unit {
-  jsengine_runtime.init()
 }

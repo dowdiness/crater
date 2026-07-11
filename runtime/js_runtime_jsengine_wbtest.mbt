@@ -1,11 +1,10 @@
 ///|
 /// Test: JsEngine Runtime Integration + Full DOM Bindings.
 /// Uses html() test helper for DOM setup where possible.
-
-///|
 test "jsengine executes basic arithmetic" {
   let dom = @dom.DomTree::new()
-  let result = JsContext::new(dom).execute("1 + 2")
+  let ctx = JsContext::new_with_runtime(dom, jsengine_runtime_ref())
+  let result = ctx.execute("1 + 2")
   guard result.value == "3" else { fail("expected 3, got " + result.value) }
   guard result.success else { fail("expected success") }
 }
@@ -13,7 +12,8 @@ test "jsengine executes basic arithmetic" {
 ///|
 test "jsengine executes string operations" {
   let dom = @dom.DomTree::new()
-  let result = JsContext::new(dom).execute("\"hello\".toUpperCase()")
+  let ctx = JsContext::new_with_runtime(dom, jsengine_runtime_ref())
+  let result = ctx.execute("\"hello\".toUpperCase()")
   guard result.success else { fail("expected success: " + result.value) }
   guard result.value == "HELLO" else {
     fail("expected HELLO, got " + result.value)
@@ -23,7 +23,8 @@ test "jsengine executes string operations" {
 ///|
 test "jsengine captures console output" {
   let dom = @dom.DomTree::new()
-  let result = JsContext::new(dom).execute("console.log(42)")
+  let ctx = JsContext::new_with_runtime(dom, jsengine_runtime_ref())
+  let result = ctx.execute("console.log(42)")
   guard result.success else { fail("expected success, got: " + result.value) }
   guard result.logs.length() > 0 else { fail("expected console output") }
   guard result.logs[0] == "42" else {
@@ -49,7 +50,8 @@ fn make_simple_dom() -> (@dom.DomTree, @dom.NodeId) {
 
 ///|
 fn run_js(dom : @dom.DomTree, code : String) -> JsResult raise {
-  JsContext::new(dom).execute(code)
+  let ctx = JsContext::new_with_runtime(dom, jsengine_runtime_ref())
+  ctx.execute(code)
 }
 
 // ── Query tests ──
@@ -288,7 +290,6 @@ test "document.title" {
   }
 }
 
-
 // ── Edge case tests ──
 
 ///|
@@ -296,7 +297,9 @@ test "multiple appendChild on same parent" {
   let (dom, _) = make_simple_dom()
   let js = "var p=document.querySelector('#root');p.appendChild(document.createElement('a'));p.appendChild(document.createElement('b'));console.log(p.innerHTML);"
   let r = run_js(dom, js)
-  guard r.logs.length() > 0 && r.logs[0] == "<a></a><b></b>" else { fail("unexpected: " + r.logs.join(",")) }
+  guard r.logs.length() > 0 && r.logs[0] == "<a></a><b></b>" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
 }
 
 ///|
@@ -304,22 +307,32 @@ test "classList operations are idempotent" {
   let (dom, _) = make_simple_dom()
   let js = "var e=document.querySelector('#root');e.classList.add('a');e.classList.add('b');e.classList.remove('a');e.classList.add('a');console.log(e.className);"
   let r = run_js(dom, js)
-  guard r.logs.length() > 0 && r.logs[0] == "b a" else { fail("unexpected: " + r.logs.join(",")) }
+  guard r.logs.length() > 0 && r.logs[0] == "b a" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
 }
 
 ///|
 test "textContent setter with empty string clears children" {
   let (dom, dv) = make_simple_dom()
   let _ = dom.append_child(dv, dom.create_text("content"))
-  let r = run_js(dom, "var e=document.querySelector('#root');e.textContent='';console.log(e.textContent);")
-  guard r.logs.length() > 0 && r.logs[0] == "" else { fail("unexpected: " + r.logs.join(",")) }
+  let r = run_js(
+    dom, "var e=document.querySelector('#root');e.textContent='';console.log(e.textContent);",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
 }
 
 ///|
 test "innerHTML with deeply nested structure" {
   let ctx = html("<div id=x><ul><li><span>deep</span></li></ul></div>")
-  let r = ctx.eval("console.log(document.querySelector('#x span').textContent);")
-  guard r.logs.length() > 0 && r.logs[0] == "deep" else { fail("unexpected: " + r.logs.join(",")) }
+  let r = ctx.eval(
+    "console.log(document.querySelector('#x span').textContent);",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "deep" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
 }
 
 ///|
@@ -327,5 +340,7 @@ test "setAttribute with special characters in value" {
   let (dom, _) = make_simple_dom()
   let js = "var e=document.querySelector('#root');e.setAttribute('data-val','<>&');console.log(e.getAttribute('data-val'));"
   let r = run_js(dom, js)
-  guard r.logs.length() > 0 && r.logs[0] == "<>&" else { fail("unexpected: " + r.logs.join(",")) }
+  guard r.logs.length() > 0 && r.logs[0] == "<>&" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
 }

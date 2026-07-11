@@ -18,7 +18,7 @@ pub fn html(html_src : String) -> TestCtx {
   let doc = @html_lib.parse_document(html_src)
   let dom = @dom.DomTree::new()
   build_dom_from_parsed(dom, doc.root)
-  let ctx = JsContext::new_with_runtime(dom, jsengine_runtime as &JsRuntime)
+  let ctx = JsContext::new_with_runtime(dom, jsengine_runtime_ref())
   { dom, context: ctx }
 }
 
@@ -98,11 +98,12 @@ pub fn TestCtx::logs(self : TestCtx) -> Array[String] {
 fn build_dom_from_parsed(dom : @dom.DomTree, el : @html_lib.Element) -> Unit {
   let doc_id = dom.get_document()
   match convert_html_node(dom, @html_lib.Node::Element(el)) {
-    Some(root_nid) => { let _ = dom.append_child(doc_id, root_nid) }
+    Some(root_nid) => {
+      let _ = dom.append_child(doc_id, root_nid)
+    }
     None => ()
   }
 }
-
 
 ///|
 /// Find and execute all inline <script> elements in the DomTree.

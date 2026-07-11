@@ -9,6 +9,7 @@ import {
   "mizchi/crater-webvitals@0.19.0",
   "mizchi/crater-painter@0.19.0",
   "mizchi/crater-renderer@0.19.0",
+  "dowdiness/js_engine@0.4.0",
 }
 
 readme = "README.mbt.md"
