@@ -22,6 +22,7 @@ options(
     "js_runtime_jsengine.mbt": [ "native" ],
     "js_runtime_jsengine_wbtest.mbt": [ "native" ],
     // Scheduler integration
+    "js_runtime_test_helpers.mbt": [ "native" ],
     "scheduler_integration_js.mbt": [ "js", "native" ],
     "scheduler_integration_stub.mbt": [ "wasm", "wasm-gc" ],
   },
