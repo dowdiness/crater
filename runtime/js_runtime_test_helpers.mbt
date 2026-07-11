@@ -115,38 +115,19 @@ fn build_dom_from_parsed(dom : @dom.DomTree, el : @html_lib.Element) -> Unit {
 }
 
 ///|
-/// Recursively build a node and its children into the DomTree.
+/// Recursively build a node into the DomTree beneath a parent.
+/// Delegates to convert_html_node to avoid duplicating the
+/// attribute/style/children recursive walk.
 fn build_node_recursive(
   dom : @dom.DomTree,
   parent_nid : @dom.NodeId,
   node : @html_lib.Node,
 ) -> Unit {
-  match node {
-    @html_lib.Node::Text(text) => {
-      let text_nid = dom.create_text(text)
-      let _ = dom.append_child(parent_nid, text_nid)
+  match convert_html_node(dom, node) {
+    Some(child_nid) => {
+      let _ = dom.append_child(parent_nid, child_nid)
     }
-    @html_lib.Node::Element(el) => {
-      let nid = dom.create_element(el.tag)
-      let _ = dom.append_child(parent_nid, nid)
-      for key in el.attributes.keys() {
-        match el.attributes.get(key) {
-          Some(value) => {
-            let _ = dom.set_attribute(nid, key, value)
-          }
-          None => ()
-        }
-      }
-      match el.style {
-        Some(s) => {
-          let _ = dom.set_attribute(nid, "style", s)
-        }
-        None => ()
-      }
-      for child in el.children {
-        build_node_recursive(dom, nid, child)
-      }
-    }
+    None => ()
   }
 }
 

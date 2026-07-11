@@ -1,6 +1,5 @@
 ///|
 /// Helper functions for HTML→DomTree conversion and error handling.
-/// Extracted from js_runtime_jsengine.mbt during refactoring.
 
 // ═══════════════════════════════════════════════
 // HTML → DomTree conversion
@@ -13,33 +12,27 @@ fn fragment_to_domtree(dom : @dom.DomTree, html : String) -> Array[@dom.NodeId] 
     return []
   }
   let root = @html_lib.parse_fragment(html)
+  let children = body_children_or_fallback(root)
   let result : Array[@dom.NodeId] = []
-  let mut found_body = false
-  for node in root.children {
-    match node {
-      @html_lib.Node::Element(el) =>
-        if el.tag == "body" {
-          for child in el.children {
-            match convert_html_node(dom, child) {
-              Some(nid) => result.push(nid)
-              None => ()
-            }
-          }
-          found_body = true
-        }
-      _ => ()
-    }
-  }
-  if !found_body {
-    // parse_fragment may not wrap in body (e.g. plain text fragments)
-    for child in root.children {
-      match convert_html_node(dom, child) {
-        Some(nid) => result.push(nid)
-        None => ()
-      }
+  for child in children {
+    match convert_html_node(dom, child) {
+      Some(nid) => result.push(nid)
+      None => ()
     }
   }
   result
+}
+
+///|
+/// Extract children from the body element, falling back to root children.
+fn body_children_or_fallback(root : @html_lib.Element) -> Array[@html_lib.Node] {
+  for node in root.children {
+    match node {
+      @html_lib.Node::Element(el) if el.tag == "body" => return el.children
+      _ => ()
+    }
+  }
+  root.children
 }
 
 ///|

@@ -1,8 +1,6 @@
 ///|
-/// Test: JsEngine Runtime Integration + Full DOM Bindings
-///
-/// Verifies js_engine-based JsRuntime with DOM API surface.
-/// All tests use whitebox access to runtime internals.
+/// Test: JsEngine Runtime Integration + Full DOM Bindings.
+/// Uses html() test helper for DOM setup where possible.
 
 ///|
 test "jsengine executes basic arithmetic" {
@@ -33,6 +31,8 @@ test "jsengine captures console output" {
   }
 }
 
+// ── Core DOM helpers ──
+
 ///|
 fn make_simple_dom() -> (@dom.DomTree, @dom.NodeId) {
   let dom = @dom.DomTree::new()
@@ -52,6 +52,8 @@ fn run_js(dom : @dom.DomTree, code : String) -> JsResult raise {
   JsContext::new(dom).execute(code)
 }
 
+// ── Query tests ──
+
 ///|
 test "document.querySelector + textContent" {
   let (dom, _) = make_simple_dom()
@@ -64,10 +66,9 @@ test "document.querySelector + textContent" {
 }
 
 ///|
-test "document.getElementById + textContent" {
+test "getElementById + textContent" {
   let (dom, dv) = make_simple_dom()
-  let t = dom.create_text("hello")
-  let _ = dom.append_child(dv, t)
+  let _ = dom.append_child(dv, dom.create_text("hello"))
   let r = run_js(
     dom, "console.log(document.getElementById('root').textContent);",
   )
@@ -77,48 +78,36 @@ test "document.getElementById + textContent" {
 }
 
 ///|
+test "querySelector returns null for non-existent" {
+  let (dom, _) = make_simple_dom()
+  let r = run_js(
+    dom, "console.log(document.querySelector('nonexistent')===null);",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "true" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+///|
+test "getAttribute returns null for non-existent" {
+  let (dom, _) = make_simple_dom()
+  let r = run_js(
+    dom, "console.log(document.querySelector('#root').getAttribute('missing')===null);",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "true" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+// ── Property tests ──
+
+///|
 test "textContent getter and setter" {
-  let (dom, dv) = make_simple_dom()
-  let _ = dom.set_attribute(dv, "id", "root")
+  let (dom, _) = make_simple_dom()
   let r = run_js(
     dom, "var e=document.querySelector('#root');e.textContent='after';console.log(e.textContent);",
   )
   guard r.logs.length() > 0 && r.logs[0] == "after" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "innerHTML getter" {
-  let (dom, dv) = make_simple_dom()
-  let sp = dom.create_element("span")
-  let _ = dom.append_child(dv, sp)
-  let tx = dom.create_text("hi")
-  let _ = dom.append_child(sp, tx)
-  let r = run_js(dom, "console.log(document.querySelector('#root').innerHTML);")
-  guard r.logs.length() > 0 && r.logs[0] == "<span>hi</span>" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "innerHTML setter" {
-  let (dom, _) = make_simple_dom()
-  let r = run_js(
-    dom, "var e=document.querySelector('#root');e.innerHTML='<span class=x>hi</span>';console.log(e.innerHTML);",
-  )
-  guard r.logs.length() > 0 && r.logs[0] == "<span class=\"x\">hi</span>" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "setAttribute and getAttribute" {
-  let (dom, _) = make_simple_dom()
-  let r = run_js(
-    dom, "var e=document.querySelector('#root');e.setAttribute('data-x','42');console.log(e.getAttribute('data-x'));",
-  )
-  guard r.logs.length() > 0 && r.logs[0] == "42" else {
     fail("unexpected: " + r.logs.join(","))
   }
 }
@@ -129,44 +118,6 @@ test "tagName getter" {
   let r = run_js(dom, "console.log(document.querySelector('#root').tagName);")
   guard r.logs.length() > 0 && r.logs[0] == "DIV" else {
     fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "createElement + appendChild + textContent setter" {
-  let (dom, _) = make_simple_dom()
-  let r = run_js(
-    dom, "var p=document.querySelector('#root');var c=document.createElement('span');c.textContent='new';p.appendChild(c);console.log(p.innerHTML);",
-  )
-  guard r.logs.length() > 0 && r.logs[0] == "<span>new</span>" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "nested innerHTML" {
-  let (dom, _) = make_simple_dom()
-  // Create <ul><li>A</li><li>B</li></ul> manually
-  let ul = dom.create_element("ul")
-  let _ = dom.append_child(dv_from_id(dom, "root"), ul)
-  let l1 = dom.create_element("li")
-  let _ = dom.append_child(ul, l1)
-  let l2 = dom.create_element("li")
-  let _ = dom.append_child(ul, l2)
-  let _ = dom.append_child(l1, dom.create_text("A"))
-  let _ = dom.append_child(l2, dom.create_text("B"))
-  let r = run_js(dom, "console.log(document.querySelector('ul').innerHTML);")
-  guard r.logs.length() > 0 && r.logs[0] == "<li>A</li><li>B</li>" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-fn dv_from_id(dom : @dom.DomTree, id : String) -> @dom.NodeId {
-  let doc = dom.get_document()
-  match dom.query_selector(doc, "#" + id) {
-    Ok(Some(nid)) => nid
-    _ => abort("element not found: " + id)
   }
 }
 
@@ -204,6 +155,106 @@ test "classList remove" {
 }
 
 ///|
+test "classList add deduplicates" {
+  let (dom, _) = make_simple_dom()
+  let r = run_js(
+    dom, "var e=document.querySelector('#root');e.classList.add('x');e.classList.add('x');console.log(e.className);",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "x" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+///|
+test "style getter" {
+  let (dom, dv) = make_simple_dom()
+  let _ = dom.set_attribute(dv, "style", "color:red")
+  let r = run_js(dom, "console.log(document.querySelector('#root').style);")
+  guard r.logs.length() > 0 && r.logs[0] == "color:red" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+// ── innerHTML tests ──
+
+///|
+test "innerHTML getter" {
+  let ctx = html("<div id=root><span>hi</span></div>")
+  let r = ctx.eval("console.log(document.querySelector('#root').innerHTML);")
+  guard r.logs.length() > 0 && r.logs[0] == "<span>hi</span>" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+///|
+test "innerHTML setter" {
+  let (dom, _) = make_simple_dom()
+  let r = run_js(
+    dom, "var e=document.querySelector('#root');e.innerHTML='<span class=x>hi</span>';console.log(e.innerHTML);",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "<span class=\"x\">hi</span>" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+///|
+test "innerHTML setter with style attribute" {
+  let (dom, _) = make_simple_dom()
+  let r = run_js(
+    dom, "var e=document.querySelector('#root');e.innerHTML='<span style=color:red>hi</span>';console.log(document.querySelector('span').getAttribute('style'));",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "color:red" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+///|
+test "empty innerHTML setter" {
+  let ctx = html("<div id=root><span>content</span></div>")
+  let r = ctx.eval(
+    "var e=document.querySelector('#root');e.innerHTML='';console.log(e.innerHTML);",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+///|
+test "nested innerHTML" {
+  let ctx = html("<ul><li>A</li><li>B</li></ul>")
+  let r = ctx.eval("console.log(document.querySelector('ul').innerHTML);")
+  guard r.logs.length() > 0 && r.logs[0] == "<li>A</li><li>B</li>" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+// ── DOM manipulation tests ──
+
+///|
+test "setAttribute and getAttribute" {
+  let (dom, _) = make_simple_dom()
+  let r = run_js(
+    dom, "var e=document.querySelector('#root');e.setAttribute('data-x','42');console.log(e.getAttribute('data-x'));",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "42" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+///|
+test "createElement + appendChild + textContent setter" {
+  let (dom, _) = make_simple_dom()
+  let r = run_js(
+    dom, "var p=document.querySelector('#root');var c=document.createElement('span');c.textContent='new';p.appendChild(c);console.log(p.innerHTML);",
+  )
+  guard r.logs.length() > 0 && r.logs[0] == "<span>new</span>" else {
+    fail("unexpected: " + r.logs.join(","))
+  }
+}
+
+// ── Global object tests ──
+
+///|
 test "window and self globals" {
   let (dom, _) = make_simple_dom()
   let r = run_js(
@@ -227,88 +278,12 @@ test "document.body" {
 }
 
 ///|
-test "style getter" {
-  let (dom, dv) = make_simple_dom()
-  let _ = dom.set_attribute(dv, "style", "color:red")
-  let r = run_js(dom, "console.log(document.querySelector('#root').style);")
-  guard r.logs.length() > 0 && r.logs[0] == "color:red" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
 test "document.title" {
-  let (dom, _) = make_simple_dom()
-  // Add a <title> tag
-  let doc = dom.get_document()
-  let h = dom.create_element("html")
-  let _ = dom.append_child(doc, h)
-  let head = dom.create_element("head")
-  let _ = dom.append_child(h, head)
-  let title = dom.create_element("title")
-  let _ = dom.append_child(head, title)
-  let _ = dom.append_child(title, dom.create_text("My Page"))
-  let _ = dom.append_child(h, dom.create_element("body"))
-  let r = run_js(dom, "console.log(document.title);")
+  let ctx = html(
+    "<html><head><title>My Page</title></head><body></body></html>",
+  )
+  let r = ctx.eval("console.log(document.title);")
   guard r.logs.length() > 0 && r.logs[0] == "My Page" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "innerHTML setter with style attribute" {
-  let (dom, _) = make_simple_dom()
-  let r = run_js(
-    dom, "var e=document.querySelector('#root');e.innerHTML='<span style=color:red>hi</span>';console.log(document.querySelector('span').getAttribute('style'));",
-  )
-  guard r.logs.length() > 0 && r.logs[0] == "color:red" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "empty innerHTML setter" {
-  let (dom, dv) = make_simple_dom()
-  let sp = dom.create_element("span")
-  let _ = dom.append_child(dv, sp)
-  let _ = dom.append_child(sp, dom.create_text("content"))
-  let r = run_js(
-    dom, "var e=document.querySelector('#root');e.innerHTML='';console.log(e.innerHTML);",
-  )
-  guard r.logs.length() > 0 && r.logs[0] == "" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "querySelector returns null for non-existent" {
-  let (dom, _) = make_simple_dom()
-  let r = run_js(
-    dom, "console.log(document.querySelector('nonexistent')===null);",
-  )
-  guard r.logs.length() > 0 && r.logs[0] == "true" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "getAttribute returns null for non-existent" {
-  let (dom, _) = make_simple_dom()
-  let r = run_js(
-    dom, "console.log(document.querySelector('#root').getAttribute('missing')===null);",
-  )
-  guard r.logs.length() > 0 && r.logs[0] == "true" else {
-    fail("unexpected: " + r.logs.join(","))
-  }
-}
-
-///|
-test "classList add deduplicates" {
-  let (dom, _) = make_simple_dom()
-  let r = run_js(
-    dom, "var e=document.querySelector('#root');e.classList.add('x');e.classList.add('x');console.log(e.className);",
-  )
-  guard r.logs.length() > 0 && r.logs[0] == "x" else {
     fail("unexpected: " + r.logs.join(","))
   }
 }
