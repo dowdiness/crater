@@ -97,11 +97,17 @@ fn convert_html_node(dom : @dom.DomTree, node : @html_lib.Node) -> @dom.NodeId? 
     @html_lib.Node::Text(text) => Some(dom.create_text(text))
     @html_lib.Node::Element(el) => {
       let nid = dom.create_element(el.tag)
+      // Copy all regular attributes
       for key in el.attributes.keys() {
         match el.attributes.get(key) {
           Some(value) => { let _ = dom.set_attribute(nid, key, value) }
           None => ()
         }
+      }
+      // Copy the parsed style field (parse_fragment extracts it from attributes)
+      match el.style {
+        Some(s) => { let _ = dom.set_attribute(nid, "style", s) }
+        None => ()
       }
       for child in el.children {
         match convert_html_node(dom, child) {

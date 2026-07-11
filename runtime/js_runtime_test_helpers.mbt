@@ -129,6 +129,10 @@ fn build_node_recursive(
           None => ()
         }
       }
+      match el.style {
+        Some(s) => { let _ = dom.set_attribute(nid, "style", s) }
+        None => ()
+      }
       for child in el.children {
         build_node_recursive(dom, nid, child)
       }
