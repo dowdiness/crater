@@ -4,9 +4,9 @@ import {
   "mizchi/crater-dom/html" @html_lib,
   "moonbitlang/core/string",
   "dowdiness/js_engine/errors" @js_errors,
-  "dowdiness/js_engine/interpreter" @interpreter,
-  "dowdiness/js_engine/interpreter/runtime" @runtime,
-  "dowdiness/js_engine/parser" @parser,
+  "dowdiness/js_engine/interpreter",
+  "dowdiness/js_engine/interpreter/runtime",
+  "dowdiness/js_engine/parser",
 }
 
 options(
@@ -20,6 +20,8 @@ options(
     "js_runtime_wasm.mbt": [ "wasm", "wasm-gc" ],
     // js_engine runtime (native target)
     "js_runtime_jsengine.mbt": [ "native" ],
+    "js_runtime_helpers.mbt": [ "native" ],
+    "js_runtime_dom.mbt": [ "native" ],
     "js_runtime_jsengine_wbtest.mbt": [ "native" ],
     // Scheduler integration
     "js_runtime_test_helpers.mbt": [ "native" ],

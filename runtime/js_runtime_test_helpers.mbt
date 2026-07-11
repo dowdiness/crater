@@ -62,9 +62,13 @@ pub fn TestCtx::assert_text(
   let actual = self.query_text(selector)
   guard actual == Some(expected) else {
     abort(
-      "assert_text failed: " + selector +
-      " expected \"" + expected +
-      "\" got \"" + actual.unwrap_or("(none)") + "\"",
+      "assert_text failed: " +
+      selector +
+      " expected \"" +
+      expected +
+      "\" got \"" +
+      actual.unwrap_or("(none)") +
+      "\"",
     )
   }
 }
@@ -98,7 +102,9 @@ fn build_dom_from_parsed(dom : @dom.DomTree, el : @html_lib.Element) -> Unit {
   // Set attributes
   for key in el.attributes.keys() {
     match el.attributes.get(key) {
-      Some(value) => { let _ = dom.set_attribute(root_nid, key, value) }
+      Some(value) => {
+        let _ = dom.set_attribute(root_nid, key, value)
+      }
       None => ()
     }
   }
@@ -125,12 +131,16 @@ fn build_node_recursive(
       let _ = dom.append_child(parent_nid, nid)
       for key in el.attributes.keys() {
         match el.attributes.get(key) {
-          Some(value) => { let _ = dom.set_attribute(nid, key, value) }
+          Some(value) => {
+            let _ = dom.set_attribute(nid, key, value)
+          }
           None => ()
         }
       }
       match el.style {
-        Some(s) => { let _ = dom.set_attribute(nid, "style", s) }
+        Some(s) => {
+          let _ = dom.set_attribute(nid, "style", s)
+        }
         None => ()
       }
       for child in el.children {
@@ -172,10 +182,7 @@ fn find_script_nodes(
     Ok(children) =>
       for child in children {
         match dom.get_tag_name(child) {
-          Ok(tag) =>
-            if tag.to_lower() == "script" {
-              result.push(child)
-            }
+          Ok(tag) => if tag.to_lower() == "script" { result.push(child) }
           Err(_) => ()
         }
         // Recurse into children
