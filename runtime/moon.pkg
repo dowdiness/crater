@@ -18,14 +18,13 @@ options(
     "js_runtime_quickjs_ffi.mbt": [ "js" ],
     // WASM stub
     "js_runtime_wasm.mbt": [ "wasm", "wasm-gc" ],
-    // Native stubs + js_engine (opt-in)
+    // js_engine (opt-in on all targets via jsengine_runtime_ref())
     "js_runtime_native_stub.mbt": [ "native" ],
-    "js_runtime_jsengine.mbt": [ "native" ],
-    "js_runtime_helpers.mbt": [ "native" ],
-    "js_runtime_dom.mbt": [ "native" ],
-    "js_runtime_jsengine_wbtest.mbt": [ "native" ],
-    // Scheduler integration
-    "js_runtime_test_helpers.mbt": [ "native" ],
+    "js_runtime_jsengine.mbt": [ "js", "native", "wasm", "wasm-gc" ],
+    "js_runtime_helpers.mbt": [ "js", "native", "wasm", "wasm-gc" ],
+    "js_runtime_dom.mbt": [ "js", "native", "wasm", "wasm-gc" ],
+    "js_runtime_test_helpers.mbt": [ "js", "native", "wasm", "wasm-gc" ],
+    "js_runtime_jsengine_wbtest.mbt": [ "js", "native", "wasm", "wasm-gc" ],
     "scheduler_integration_js.mbt": [ "js", "native" ],
     "scheduler_integration_stub.mbt": [ "wasm", "wasm-gc" ],
   },
