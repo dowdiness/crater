@@ -1,0 +1,7 @@
+import {
+  "mizchi/crater-browser-runtime" @rt,
+  "mizchi/crater-dom/dom",
+}
+options(
+  "is-main": true,
+)

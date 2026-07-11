@@ -2,8 +2,10 @@ import {
   "mizchi/crater-dom/dom",
   "mizchi/crater-dom/scheduler",
   "moonbitlang/core/string",
-  "dowdiness/js_engine",
   "dowdiness/js_engine/errors" @js_errors,
+  "dowdiness/js_engine/interpreter" @interpreter,
+  "dowdiness/js_engine/interpreter/runtime" @runtime,
+  "dowdiness/js_engine/parser" @parser,
 }
 
 options(
