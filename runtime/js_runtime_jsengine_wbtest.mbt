@@ -287,3 +287,45 @@ test "document.title" {
     fail("unexpected: " + r.logs.join(","))
   }
 }
+
+
+// ── Edge case tests ──
+
+///|
+test "multiple appendChild on same parent" {
+  let (dom, _) = make_simple_dom()
+  let js = "var p=document.querySelector('#root');p.appendChild(document.createElement('a'));p.appendChild(document.createElement('b'));console.log(p.innerHTML);"
+  let r = run_js(dom, js)
+  guard r.logs.length() > 0 && r.logs[0] == "<a></a><b></b>" else { fail("unexpected: " + r.logs.join(",")) }
+}
+
+///|
+test "classList operations are idempotent" {
+  let (dom, _) = make_simple_dom()
+  let js = "var e=document.querySelector('#root');e.classList.add('a');e.classList.add('b');e.classList.remove('a');e.classList.add('a');console.log(e.className);"
+  let r = run_js(dom, js)
+  guard r.logs.length() > 0 && r.logs[0] == "b a" else { fail("unexpected: " + r.logs.join(",")) }
+}
+
+///|
+test "textContent setter with empty string clears children" {
+  let (dom, dv) = make_simple_dom()
+  let _ = dom.append_child(dv, dom.create_text("content"))
+  let r = run_js(dom, "var e=document.querySelector('#root');e.textContent='';console.log(e.textContent);")
+  guard r.logs.length() > 0 && r.logs[0] == "" else { fail("unexpected: " + r.logs.join(",")) }
+}
+
+///|
+test "innerHTML with deeply nested structure" {
+  let ctx = html("<div id=x><ul><li><span>deep</span></li></ul></div>")
+  let r = ctx.eval("console.log(document.querySelector('#x span').textContent);")
+  guard r.logs.length() > 0 && r.logs[0] == "deep" else { fail("unexpected: " + r.logs.join(",")) }
+}
+
+///|
+test "setAttribute with special characters in value" {
+  let (dom, _) = make_simple_dom()
+  let js = "var e=document.querySelector('#root');e.setAttribute('data-val','<>&');console.log(e.getAttribute('data-val'));"
+  let r = run_js(dom, js)
+  guard r.logs.length() > 0 && r.logs[0] == "<>&" else { fail("unexpected: " + r.logs.join(",")) }
+}
