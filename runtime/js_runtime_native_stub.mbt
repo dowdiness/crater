@@ -1,8 +1,10 @@
+///| Default stub raises NotSupported. Opt-in backends:
 ///|
-/// JavaScript Runtime - Native target (default stub)
-///
-/// Default stub raises NotSupported. Use Browser::set_js_runtime()
-/// with JsEngineRuntime from js_runtime_jsengine.mbt to enable JS.
+///| - js_engine (pure MoonBit):  browser.set_js_runtime(jsengine_runtime_ref())
+///|   See runtime/js_runtime_jsengine.mbt
+///|
+///| - V8 (native FFI):           browser.set_js_runtime(V8JsRuntime::new())
+///|   See browser/native/js_v8/js_runtime_v8.mbt
 
 ///|
 priv struct NativeStubRuntime {
