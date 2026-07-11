@@ -3,9 +3,6 @@
 ///
 /// Uses dowdiness/js_engine (pure MoonBit JavaScript interpreter)
 /// for JavaScript execution on the native target.
-///
-/// Registers DOM methods as native MoonBit functions operating
-/// directly on crater's DomTree.
 
 ///|
 const CRATER_NODE_ID_KEY : String = "__crater_nid"
@@ -55,8 +52,46 @@ impl JsRuntime for JsEngineRuntime with fn execute(
   }
 }
 
+// ═══════════════════════════════════════════════
+// HTML → DomTree
+// ═══════════════════════════════════════════════
+
 ///|
-/// Recursively convert an @html.Node to DomTree nodes.
+fn fragment_to_domtree(dom : @dom.DomTree, html : String) -> Array[@dom.NodeId] {
+  if html.length() == 0 {
+    return []
+  }
+  let root = @html_lib.parse_fragment(html)
+  let result : Array[@dom.NodeId] = []
+  let mut found_body = false
+  for node in root.children {
+    match node {
+      @html_lib.Node::Element(el) =>
+        if el.tag == "body" {
+          for child in el.children {
+            match convert_html_node(dom, child) {
+              Some(nid) => result.push(nid)
+              None => ()
+            }
+          }
+          found_body = true
+        }
+      _ => ()
+    }
+  }
+  if !found_body {
+    // parse_fragment may not wrap in body (e.g. plain text fragments)
+    for child in root.children {
+      match convert_html_node(dom, child) {
+        Some(nid) => result.push(nid)
+        None => ()
+      }
+    }
+  }
+  result
+}
+
+///|
 fn convert_html_node(dom : @dom.DomTree, node : @html_lib.Node) -> @dom.NodeId? {
   match node {
     @html_lib.Node::Text(text) => Some(dom.create_text(text))
@@ -80,42 +115,6 @@ fn convert_html_node(dom : @dom.DomTree, node : @html_lib.Node) -> @dom.NodeId? 
 }
 
 ///|
-/// Parse HTML fragment and create DomTree nodes. Extracts body-level content.
-fn fragment_to_domtree(dom : @dom.DomTree, html : String) -> Array[@dom.NodeId] {
-  let root = @html_lib.parse_fragment(html)
-  let result : Array[@dom.NodeId] = []
-  // parse_fragment wraps in <head></head><body>...</body>;
-  // find the body element and use its children
-  let mut found = false
-  for node in root.children {
-    match node {
-      @html_lib.Node::Element(el) =>
-        if el.tag == "body" {
-          for child in el.children {
-            match convert_html_node(dom, child) {
-              Some(nid) => result.push(nid)
-              None => ()
-            }
-          }
-          found = true
-        }
-      _ => ()
-    }
-  }
-  if !found {
-    // Fallback: iterate all children
-    for child in root.children {
-      match convert_html_node(dom, child) {
-        Some(nid) => result.push(nid)
-        None => ()
-      }
-    }
-  }
-  result
-}
-
-///|
-/// Clear all children of a DomTree node.
 fn clear_children(dom : @dom.DomTree, node_id : @dom.NodeId) -> Unit {
   match dom.get_children(node_id) {
     Ok(children) =>
@@ -127,11 +126,31 @@ fn clear_children(dom : @dom.DomTree, node_id : @dom.NodeId) -> Unit {
 }
 
 // ═══════════════════════════════════════════════
+// Error helpers
+// ═══════════════════════════════════════════════
+
+///|
+/// Raise a JS TypeError with the given message, suitable for native callbacks.
+fn raise_dom_error(msg : String) -> @runtime.Value raise Error {
+  raise @js_errors.TypeError(message=msg)
+}
+
+///|
+/// Map a DomTree CoreError to a JS TypeError message and raise it.
+fn expect_dom_ok(result : Result[Unit, @dom.CoreError]) -> Unit raise Error {
+  match result {
+    Ok(_) => ()
+    Err(e) => {
+      let _ = raise_dom_error("DOM error: " + e.to_string())
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
 // Document bindings
 // ═══════════════════════════════════════════════
 
 ///|
-/// Inject all DOM bindings into the interpreter global scope.
 fn inject_dom_bindings(
   env : @interpreter.Environment,
   realm_state : @runtime.RealmState,
@@ -148,7 +167,8 @@ fn inject_dom_bindings(
       let sel = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.query_selector(doc_id, sel) {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
-        _ => @runtime.Null
+        Ok(None) => @runtime.Null
+        Err(_) => @runtime.Null
       }
     },
   )
@@ -162,7 +182,8 @@ fn inject_dom_bindings(
       let id = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.query_selector(doc_id, "#" + id) {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
-        _ => @runtime.Null
+        Ok(None) => @runtime.Null
+        Err(_) => @runtime.Null
       }
     },
   )
@@ -176,7 +197,7 @@ fn inject_dom_bindings(
       let tag = if args.length() > 0 {
         args[0].to_string()
       } else {
-        "div"
+        return raise_dom_error("createElement: tag name required")
       }
       wrap_element(dom, dom.create_element(tag), realm_state)
     },
@@ -236,20 +257,20 @@ fn inject_dom_bindings(
     _ => ()
   }
 
-  // ── Build window object ──
+  // ── window: a separate object with `document` property ──
   let win_props : Map[String, @runtime.Value] = {}
   win_props["document"] = document
   let win_descs : Map[String, @runtime.PropDescriptor] = {}
-
   let window = @runtime.make_object(
     win_props, @runtime.Null, None, "Window", win_descs, true,
   )
 
   // Register globals
   env.def_builtin("document", document)
+  // `window` is a separate object (not the same as global this)
   env.def_builtin("window", window)
+  // `self` points to `window` per spec
   env.def_builtin("self", window)
-  env.def_builtin("globalThis", window)
 }
 
 // ═══════════════════════════════════════════════
@@ -257,7 +278,6 @@ fn inject_dom_bindings(
 // ═══════════════════════════════════════════════
 
 ///|
-/// Wrap a crater NodeId as a JS Element object with DOM properties and methods.
 fn wrap_element(
   dom : @dom.DomTree,
   node_id : @dom.NodeId,
@@ -273,7 +293,7 @@ fn wrap_element(
       let _ = this
       match dom.get_text_content(node_id) {
         Ok(text) => @runtime.Value::String_(text)
-        Err(_) => @runtime.Undefined
+        Err(_) => @runtime.Value::String_("")
       }
     },
   )
@@ -291,7 +311,7 @@ fn wrap_element(
       }
       clear_children(dom, node_id)
       let text_nid = dom.create_text(value)
-      let _ = dom.append_child(node_id, text_nid)
+      expect_dom_ok(dom.append_child(node_id, text_nid))
       @runtime.Undefined
     },
   )
@@ -322,7 +342,7 @@ fn wrap_element(
     },
   )
 
-  // ── className getter ──
+  // ── className getter/setter ──
   let class_name_getter = @runtime.make_method_func(
     name="className",
     realm_state=Some(realm_state),
@@ -334,8 +354,6 @@ fn wrap_element(
       }
     },
   )
-
-  // ── className setter ──
   let class_name_setter = @runtime.make_method_func(
     name="className",
     realm_state=Some(realm_state),
@@ -346,77 +364,10 @@ fn wrap_element(
       } else {
         ""
       }
-      let _ = dom.set_attribute(node_id, "class", value)
+      expect_dom_ok(dom.set_attribute(node_id, "class", value))
       @runtime.Undefined
     },
   )
-
-  // ── classList object ──
-  let class_list_contains = @runtime.make_method_func(
-    name="contains", length=1,
-    realm_state=Some(realm_state),
-    fn(this, args) {
-      let _ = this
-      let cls = if args.length() > 0 { args[0].to_string() } else { "" }
-      match dom.get_attribute(node_id, "class") {
-        Ok(Some(val)) =>
-          @runtime.Value::Bool(val.split(" ").any(fn(c) { c == cls }))
-        _ => @runtime.Value::Bool(false)
-      }
-    },
-  )
-  let class_list_add = @runtime.make_method_func(
-    name="add", length=1,
-    realm_state=Some(realm_state),
-    fn(this, args) {
-      let _ = this
-      let cls = if args.length() > 0 { args[0].to_string() } else { "" }
-      match dom.get_attribute(node_id, "class") {
-        Ok(Some(val)) => {
-          let classes = val.split(" ")
-          let found = classes.any(fn(c) { c == cls })
-          if !found {
-            let new_val = val + " " + cls
-            let _ = dom.set_attribute(node_id, "class", new_val)
-          }
-        }
-        _ => { let _ = dom.set_attribute(node_id, "class", cls) }
-      }
-      @runtime.Undefined
-    },
-  )
-  let class_list_remove = @runtime.make_method_func(
-    name="remove", length=1,
-    realm_state=Some(realm_state),
-    fn(this, args) {
-      let _ = this
-      let cls = if args.length() > 0 { args[0].to_string() } else { "" }
-      match dom.get_attribute(node_id, "class") {
-        Ok(Some(val)) => {
-          let new_val = val.split(" ")
-            .filter(fn(c) { c != cls })
-            .join(" ")
-          let _ = dom.set_attribute(node_id, "class", new_val)
-        }
-        _ => ()
-      }
-      @runtime.Undefined
-    },
-  )
-
-  let class_list_props : Map[String, @runtime.Value] = {}
-  let class_list_descs : Map[String, @runtime.PropDescriptor] = {}
-  let class_list = @runtime.make_object(
-    class_list_props, @runtime.Null, None, "DOMTokenList", class_list_descs, true,
-  )
-  match class_list {
-    @runtime.Value::Object(data) => {
-      @runtime.install_builtin_method(data, "contains", class_list_contains)
-      @runtime.install_builtin_method(data, "add", class_list_add)
-      @runtime.install_builtin_method(data, "remove", class_list_remove)
-    }
-    _ => ()
-  }
 
   // ── innerHTML getter ──
   let inner_html_getter = @runtime.make_method_func(
@@ -450,27 +401,90 @@ fn wrap_element(
       clear_children(dom, node_id)
       let new_nodes = fragment_to_domtree(dom, html)
       for child in new_nodes {
-        let _ = dom.append_child(node_id, child)
+        expect_dom_ok(dom.append_child(node_id, child))
       }
       @runtime.Undefined
     },
   )
 
   // ── style getter ──
-  // Creates a simple object whose properties proxy to setAttribute/getAttribute
   let style_getter = @runtime.make_method_func(
     name="style",
     realm_state=Some(realm_state),
     fn(this, _args) {
       let _ = this
-      // Current inline style value
-      let current_style = match dom.get_attribute(node_id, "style") {
-        Ok(Some(s)) => s
-        _ => ""
+      match dom.get_attribute(node_id, "style") {
+        Ok(Some(s)) => @runtime.Value::String_(s)
+        _ => @runtime.Value::String_("")
       }
-      @runtime.Value::String_(current_style)
     },
   )
+
+  // ── classList object ──
+  let class_list_contains = @runtime.make_method_func(
+    name="contains", length=1,
+    realm_state=Some(realm_state),
+    fn(this, args) {
+      let _ = this
+      let cls = if args.length() > 0 { args[0].to_string() } else { "" }
+      match dom.get_attribute(node_id, "class") {
+        Ok(Some(val)) =>
+          @runtime.Value::Bool(val.split(" ").any(fn(c) { c == cls }))
+        _ => @runtime.Value::Bool(false)
+      }
+    },
+  )
+  let class_list_add = @runtime.make_method_func(
+    name="add", length=1,
+    realm_state=Some(realm_state),
+    fn(this, args) {
+      let _ = this
+      let cls = if args.length() > 0 { args[0].to_string() } else { "" }
+      match dom.get_attribute(node_id, "class") {
+        Ok(Some(val)) => {
+          if !val.split(" ").any(fn(c) { c == cls }) {
+            expect_dom_ok(dom.set_attribute(node_id, "class", val + " " + cls))
+          }
+        }
+        _ => { expect_dom_ok(dom.set_attribute(node_id, "class", cls)) }
+      }
+      @runtime.Undefined
+    },
+  )
+  let class_list_remove = @runtime.make_method_func(
+    name="remove", length=1,
+    realm_state=Some(realm_state),
+    fn(this, args) {
+      let _ = this
+      let cls = if args.length() > 0 { args[0].to_string() } else { "" }
+      match dom.get_attribute(node_id, "class") {
+        Ok(Some(val)) => {
+          expect_dom_ok(
+            dom.set_attribute(
+              node_id, "class",
+              val.split(" ").filter(fn(c) { c != cls }).join(" "),
+            ),
+          )
+        }
+        _ => ()
+      }
+      @runtime.Undefined
+    },
+  )
+
+  let class_list_props : Map[String, @runtime.Value] = {}
+  let class_list_descs : Map[String, @runtime.PropDescriptor] = {}
+  let class_list = @runtime.make_object(
+    class_list_props, @runtime.Null, None, "DOMTokenList", class_list_descs, true,
+  )
+  match class_list {
+    @runtime.Value::Object(data) => {
+      @runtime.install_builtin_method(data, "contains", class_list_contains)
+      @runtime.install_builtin_method(data, "add", class_list_add)
+      @runtime.install_builtin_method(data, "remove", class_list_remove)
+    }
+    _ => ()
+  }
 
   // ── setAttribute(name, value) ──
   let set_attr = @runtime.make_method_func(
@@ -480,7 +494,7 @@ fn wrap_element(
       let _ = this
       let name = if args.length() > 0 { args[0].to_string() } else { "" }
       let value = if args.length() > 1 { args[1].to_string() } else { "" }
-      let _ = dom.set_attribute(node_id, name, value)
+      expect_dom_ok(dom.set_attribute(node_id, name, value))
       @runtime.Undefined
     },
   )
@@ -505,17 +519,16 @@ fn wrap_element(
     realm_state=Some(realm_state),
     fn(this, args) {
       let _ = this
-      if args.length() > 0 {
-        let child_val = args[0]
-        match extract_node_id(child_val) {
-          Some(cnid) => {
-            let _ = dom.append_child(node_id, cnid)
-            child_val
-          }
-          None => @runtime.Undefined
+      if args.length() == 0 {
+        return raise_dom_error("appendChild: child element required")
+      }
+      let child_val = args[0]
+      match extract_node_id(child_val) {
+        Some(cnid) => {
+          expect_dom_ok(dom.append_child(node_id, cnid))
+          child_val
         }
-      } else {
-        @runtime.Undefined
+        None => raise_dom_error("appendChild: invalid child element")
       }
     },
   )
@@ -575,7 +588,6 @@ fn wrap_element(
 }
 
 ///|
-/// Extract NodeId from a JS Element wrapper (reads __crater_nid property).
 fn extract_node_id(val : @runtime.Value) -> @dom.NodeId? {
   match val {
     @runtime.Value::Object(data) =>
