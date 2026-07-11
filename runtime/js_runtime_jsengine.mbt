@@ -1,16 +1,15 @@
+///| Native JS runtime options:
 ///|
-/// JavaScript Runtime - js_engine implementation
-///
-/// Pure MoonBit JS interpreter. Compiles on all targets:
-///   native: moon check -p runtime --target native
-///   js:     moon check -p runtime --target js
-///   wasm:   moon check -p runtime --target wasm
-///
-/// Opt-in via: browser.set_js_runtime(jsengine_runtime_ref())
-///
-/// Alternatives:
-///   Default: NativeStubRuntime (NotSupported)
-///   V8:      browser/native/js_v8/js_runtime_v8.mbt
+///|   Default: NativeStubRuntime   (NotSupported) — Browser::new() uses this
+///|   Opt-in:  JsEngineRuntime     (this file)   — jsengine_runtime_ref()
+///|   Ext.:    V8JsRuntime         (native FFI)  — mizchi/crater-browser-native/js_v8
+///|
+///| Usage:
+///|   let browser = Browser::new(1024, 768)
+///|   browser.set_js_runtime(jsengine_runtime_ref())
+///|
+/// Property key used to store NodeId on JS Element wrapper objects.
+const CRATER_NODE_ID_KEY : String = "__crater_nid"
 
 ///|
 priv struct JsEngineRuntime {
@@ -39,9 +38,10 @@ impl JsRuntime for JsEngineRuntime with fn execute(
   code : String,
   async_mode : AsyncExecutionMode,
 ) -> JsResult raise JsError {
-  let _ = (self, context_id, dom, async_mode)
+  let _ = (self, context_id, async_mode)
   try {
     let interp = @interpreter.new_interpreter()
+    inject_dom_bindings(interp.global, interp.realm_state, dom)
     let prog = @parser.parse(code)
     let result = interp.run(prog.stmts)
     interp.run_microtasks()
@@ -52,6 +52,10 @@ impl JsRuntime for JsEngineRuntime with fn execute(
   }
 }
 
+// ═══════════════════════════════════════════════
+// JsRuntime trait — remaining methods
+// ═══════════════════════════════════════════════
+
 ///|
 impl JsRuntime for JsEngineRuntime with fn tick(
   self : JsEngineRuntime,
@@ -60,13 +64,4 @@ impl JsRuntime for JsEngineRuntime with fn tick(
 ) -> JsResult raise JsError {
   let _ = (self, context_id, dom)
   JsResult::new("false", [], true)
-}
-
-///|
-fn describe_js_engine_error(err : Error) -> String {
-  @js_errors.name_message_if_js_error(err)
-  .map_or(err.to_string(), fn(pair) {
-    let (name, msg) = pair
-    name + ": " + msg
-  })
 }
