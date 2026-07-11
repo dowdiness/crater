@@ -1,6 +1,7 @@
 import {
   "mizchi/crater-dom/dom",
   "mizchi/crater-dom/scheduler",
+  "mizchi/crater-dom/html" @html_lib,
   "moonbitlang/core/string",
   "dowdiness/js_engine/errors" @js_errors,
   "dowdiness/js_engine/interpreter" @interpreter,
