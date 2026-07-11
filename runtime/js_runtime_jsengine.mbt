@@ -1,13 +1,12 @@
+///| Native JS runtime options:
 ///|
-/// JavaScript Runtime - js_engine implementation with DOM bindings
-///
-/// NOT the default on native. Use Browser::set_js_runtime():
-///   browser.set_js_runtime(jsengine_runtime_ref())
-///
-/// DOM bindings and helpers live in sibling files:
-///   js_runtime_dom.mbt   — inject_dom_bindings, wrap_element, extract_node_id
-///   js_runtime_helpers.mbt — HTML→DomTree, error handling
-
+///|   Default: NativeStubRuntime   (NotSupported) — Browser::new() uses this
+///|   Opt-in:  JsEngineRuntime     (this file)   — jsengine_runtime_ref()
+///|   Ext.:    V8JsRuntime         (native FFI)  — mizchi/crater-browser-native/js_v8
+///|
+///| Usage:
+///|   let browser = Browser::new(1024, 768)
+///|   browser.set_js_runtime(jsengine_runtime_ref())
 ///|
 /// Property key used to store NodeId on JS Element wrapper objects.
 const CRATER_NODE_ID_KEY : String = "__crater_nid"
