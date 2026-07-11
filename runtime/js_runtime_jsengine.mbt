@@ -168,7 +168,7 @@ fn inject_dom_bindings(
   let query_selector = @runtime.make_method_func(
     name="querySelector", length=1,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let sel = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.query_selector(doc_id, sel) {
@@ -183,7 +183,7 @@ fn inject_dom_bindings(
   let get_element_by_id = @runtime.make_method_func(
     name="getElementById", length=1,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let id = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.query_selector(doc_id, "#" + id) {
@@ -198,7 +198,7 @@ fn inject_dom_bindings(
   let create_element = @runtime.make_method_func(
     name="createElement", length=1,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let tag = if args.length() > 0 {
         args[0].to_string()
@@ -213,7 +213,7 @@ fn inject_dom_bindings(
   let title_getter = @runtime.make_method_func(
     name="title",
     realm_state=Some(realm_state),
-    fn(this, _args) {
+     (this, _args) => {
       let _ = this
       match dom.query_selector(doc_id, "title") {
         Ok(Some(tid)) =>
@@ -230,7 +230,7 @@ fn inject_dom_bindings(
   let body_getter = @runtime.make_method_func(
     name="body",
     realm_state=Some(realm_state),
-    fn(this, _args) {
+     (this, _args) => {
       let _ = this
       match dom.query_selector(doc_id, "body") {
         Ok(Some(nid)) => wrap_element(dom, nid, realm_state)
@@ -295,7 +295,7 @@ fn wrap_element(
   let text_content_getter = @runtime.make_method_func(
     name="textContent",
     realm_state=Some(realm_state),
-    fn(this, _args) {
+     (this, _args) => {
       let _ = this
       match dom.get_text_content(node_id) {
         Ok(text) => @runtime.Value::String_(text)
@@ -308,7 +308,7 @@ fn wrap_element(
   let text_content_setter = @runtime.make_method_func(
     name="textContent",
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let value = if args.length() > 0 {
         args[0].to_string()
@@ -326,7 +326,7 @@ fn wrap_element(
   let id_getter = @runtime.make_method_func(
     name="id",
     realm_state=Some(realm_state),
-    fn(this, _args) {
+     (this, _args) => {
       let _ = this
       match dom.get_attribute(node_id, "id") {
         Ok(Some(val)) => @runtime.Value::String_(val)
@@ -339,7 +339,7 @@ fn wrap_element(
   let tag_name_getter = @runtime.make_method_func(
     name="tagName",
     realm_state=Some(realm_state),
-    fn(this, _args) {
+     (this, _args) => {
       let _ = this
       match dom.get_tag_name(node_id) {
         Ok(name) => @runtime.Value::String_(name.to_upper())
@@ -352,7 +352,7 @@ fn wrap_element(
   let class_name_getter = @runtime.make_method_func(
     name="className",
     realm_state=Some(realm_state),
-    fn(this, _args) {
+     (this, _args) => {
       let _ = this
       match dom.get_attribute(node_id, "class") {
         Ok(Some(val)) => @runtime.Value::String_(val)
@@ -363,7 +363,7 @@ fn wrap_element(
   let class_name_setter = @runtime.make_method_func(
     name="className",
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let value = if args.length() > 0 {
         args[0].to_string()
@@ -379,7 +379,7 @@ fn wrap_element(
   let inner_html_getter = @runtime.make_method_func(
     name="innerHTML",
     realm_state=Some(realm_state),
-    fn(this, _args) {
+     (this, _args) => {
       let _ = this
       let buf = StringBuilder::new()
       match dom.get_children(node_id) {
@@ -397,7 +397,7 @@ fn wrap_element(
   let inner_html_setter = @runtime.make_method_func(
     name="innerHTML",
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let html = if args.length() > 0 {
         args[0].to_string()
@@ -417,7 +417,7 @@ fn wrap_element(
   let style_getter = @runtime.make_method_func(
     name="style",
     realm_state=Some(realm_state),
-    fn(this, _args) {
+     (this, _args) => {
       let _ = this
       match dom.get_attribute(node_id, "style") {
         Ok(Some(s)) => @runtime.Value::String_(s)
@@ -430,7 +430,7 @@ fn wrap_element(
   let class_list_contains = @runtime.make_method_func(
     name="contains", length=1,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
@@ -443,7 +443,7 @@ fn wrap_element(
   let class_list_add = @runtime.make_method_func(
     name="add", length=1,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
@@ -460,7 +460,7 @@ fn wrap_element(
   let class_list_remove = @runtime.make_method_func(
     name="remove", length=1,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let cls = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, "class") {
@@ -496,7 +496,7 @@ fn wrap_element(
   let set_attr = @runtime.make_method_func(
     name="setAttribute", length=2,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let name = if args.length() > 0 { args[0].to_string() } else { "" }
       let value = if args.length() > 1 { args[1].to_string() } else { "" }
@@ -509,7 +509,7 @@ fn wrap_element(
   let get_attr = @runtime.make_method_func(
     name="getAttribute", length=1,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       let name = if args.length() > 0 { args[0].to_string() } else { "" }
       match dom.get_attribute(node_id, name) {
@@ -523,7 +523,7 @@ fn wrap_element(
   let append_child = @runtime.make_method_func(
     name="appendChild", length=1,
     realm_state=Some(realm_state),
-    fn(this, args) {
+     (this, args) => {
       let _ = this
       if args.length() == 0 {
         return raise_dom_error("appendChild: child element required")
